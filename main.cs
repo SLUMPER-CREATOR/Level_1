@@ -1,38 +1,71 @@
 using System;
+using System.Linq;
+using System.Collections.Generic;
 
-class Hero
+abstract class Character
 {
+    public string Name;
     public int Health;
     public int Damage;
+    public bool IsAlive => Health > 0;
     
-    public Hero(int health, int damage)
+    public Character(string name, int health, int damage)
     {
+        Name = name;
         Health = health;
         Damage = damage;
     }
     
-    public void Attack(Monster monster)
+    public abstract void Attack(Character target);
+    
+    public void TakeDamage(int amount)
     {
-        monster.Health -= Damage;
-        Console.WriteLine($"Герой нанес {Damage} урона! У монстра {monster.Health} здоровья");
+        Health -= amount;
+        Console.WriteLine($"{Name} получил {amount} урона. Здоровье: {Health}");
     }
 }
 
-class Monster
+class Warrior : Character
 {
-    public int Health;
-    public int Damage;
+    static Random rnd = new Random();
+    public Warrior(string name, int health, int damage) : base(name, health, damage) { }
     
-    public Monster(int health, int damage)
+    public override void Attack(Character target)
     {
-        Health = health;
-        Damage = damage;
+        int dmg = rnd.Next(100) < 30 ? Damage * 2 : Damage;
+        string crit = dmg > Damage ? " КРИТИЧЕСКИЙ УДАР!" : "";
+        Console.WriteLine($"{Name} атакует.{crit} Урон: {dmg}");
+        target.TakeDamage(dmg);
     }
+}
+
+class Mage : Character
+{
+    static Random rnd = new Random();
+    public Mage(string name, int health, int damage) : base(name, health, damage) { }
     
-    public void Attack(Hero hero)
+    public override void Attack(Character target)
     {
-        hero.Health -= Damage;
-        Console.WriteLine($"Монстр нанес {Damage} урона! У героя {hero.Health} здоровья");
+        if (rnd.Next(100) < 40 && Health < 100)
+        {
+            Health += 20;
+            Console.WriteLine($"{Name} ВЫЛЕЧИЛСЯ. Здоровье: {Health}");
+        }
+        else
+        {
+            Console.WriteLine($"{Name} атакует. Урон: {Damage}");
+            target.TakeDamage(Damage);
+        }
+    }
+}
+
+class Monster : Character
+{
+    public Monster(string name, int health, int damage) : base(name, health, damage) { }
+    public override void Attack(Character target)
+    {
+        Console.WriteLine($"{Name} атакует. Урон: {Damage}");
+        target.TakeDamage(Damage);
     }
 }
 
@@ -40,29 +73,26 @@ class Program
 {
     static void Main()
     {
-        // Создаем героя и монстра
-        Hero hero = new Hero(100, 25);
-        Monster monster = new Monster(80, 20);
+        var heroes = new List<Character> { new Warrior("Войнучик", 200, 10), new Mage("Колдунчик", 100, 20) };
+        var monsters = new List<Monster> { new Monster("Зомби", 100, 30), new Monster("Скелет", 100, 20) };
         
-        // Битва
-        while (hero.Health > 0 && monster.Health > 0)
+        while (heroes.Any(h => h.IsAlive) && monsters.Any(m => m.IsAlive))
         {
-            hero.Attack(monster);
-            
-            if (monster.Health > 0)
+            foreach (var h in heroes.Where(h => h.IsAlive))
             {
-                monster.Attack(hero);
+                h.Attack(monsters.First(m => m.IsAlive));
+                monsters.RemoveAll(m => !m.IsAlive);
+                if (!monsters.Any()) break;
+            }
+            
+            foreach (var m in monsters.Where(m => m.IsAlive))
+            {
+                m.Attack(heroes.First(h => h.IsAlive));
+                heroes.RemoveAll(h => !h.IsAlive);
+                if (!heroes.Any()) break;
             }
         }
         
-        // Кто победил?
-        if (hero.Health > 0)
-        {
-            Console.WriteLine("\nГерой победил!");
-        }
-        else
-        {
-            Console.WriteLine("\nМонстр победил!");
-        }
+        Console.WriteLine(heroes.Any(h => h.IsAlive) ? "\nПОБЕДА" : "\nПОРАЖЕНИЕ");
     }
 }
